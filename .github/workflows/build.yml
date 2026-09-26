@@ -318,7 +318,7 @@ jobs:
       - name: Make AnyKernel3
         run: |
           ZIP_NAME="${KERNEL_NAME}_$(date -u +"%Y%m%d_%H%M")"
-          git clone https://github.com/Kernel-SU/AnyKernel3.git
+          git clone --depth=1 https://github.com/KernelSU-Next/AnyKernel3.git
 
           cp ${SOC}/out/arch/arm64/boot/Image AnyKernel3/Image
           cp ${SOC}/out/arch/arm64/boot/Image ./Image
