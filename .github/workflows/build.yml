@@ -38,7 +38,7 @@ on:
           - Official-KernelSU
           - KernelSU-Next
           - KowSU
-          - ReSukiSU
+          - BakaSU
 
       susfs:
         description: "Add susfs support"
@@ -246,8 +246,8 @@ jobs:
               fi
               ;;
 
-            "ReSukiSU")
-              curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+            "BakaSU")
+              curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash
               ;;
           esac
 
