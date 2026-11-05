@@ -258,6 +258,10 @@ jobs:
             cp ./kernel_patches/fs/* ../fs/
             cp ./kernel_patches/include/linux/* ../include/linux/
             cd ..
+            # Upstream left susfs_switch_to_ksu_domain/susfs_restore_creds outside
+            # CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER; with that symbol off (BakaSU etc)
+            # they become -Werror,-Wunused-function. Same guard as WildKernels.
+            python3 "${GITHUB_WORKSPACE}/.github/scripts/susfs_guard_priority_helpers.py" fs/susfs.c
             patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch
             echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/gki_defconfig
             echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/gki_defconfig
