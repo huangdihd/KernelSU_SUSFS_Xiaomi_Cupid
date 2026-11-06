@@ -4,15 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       clang_version:
-        description: Type the clang version of ur kernel
+        description: Clang version (r596125 for LineageOS 24 / Android 17)
         required: true
         type: choice
+        default: clang-r596125
         options:
           - clang-3289846
           - clang-r547379
           - clang-r563880
           - clang-r563880c
           - clang-r574158
+          - clang-r596125
           - clang-stable
 
       kernel_source:
@@ -24,10 +26,10 @@ on:
           - crdroidandroid
 
       kernel_branch:
-        description: Kernel Branch(such as lineage-23.2 sixteen-qpr1)
+        description: Kernel branch (lineage-24.0 for LOS 24; lineage-23.2 for LOS 23.2)
         required: true
         type: string
-        default: "lineage-23.2"
+        default: "lineage-24.0"
 
       ksu_type:
         description: "KernelSU Version"
@@ -75,7 +77,7 @@ jobs:
     env:
         GH_TOKEN: ${{ github.token }}
         SOC: sm8450
-        CCACHE_KEY: ccache-ecsv3-cupid-sm8450
+        CCACHE_KEY: ccache-ecsv4-cupid-sm8450
         # Public link of your Telegram group (shown as "JOIN" button in the push).
         TG_GROUP_URL: "https://t.me/huangdihdskernelbuilds"
     runs-on: ubuntu-latest
@@ -114,6 +116,8 @@ jobs:
         run: |
           git clone --depth=1 -b ${{ inputs.kernel_branch }} https://github.com/${{ inputs.kernel_source }}/android_kernel_xiaomi_${SOC}.git ${SOC}
           git clone --depth=1 -b ${{ inputs.kernel_branch }} https://github.com/${{ inputs.kernel_source }}/android_kernel_xiaomi_${SOC}-modules.git ${SOC}-modules
+          echo "Kernel revision: $(git -C ${SOC} rev-parse HEAD)"
+          echo "Modules revision: $(git -C ${SOC}-modules rev-parse HEAD)"
 
       - name: Download AOSP Clang
         run: |
@@ -122,7 +126,14 @@ jobs:
           set +e
           mkdir -p toolchains/${{ inputs.clang_version }}
           cd toolchains
-          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-qpr2-release/${{ inputs.clang_version }}.tar.gz"
+          # Match the compiler and prebuilt revision in cupid's official
+          # lineage-24.0-20261105 boot image / build manifest.
+          # Keep older compiler selections available for existing ROM branches.
+          case "${{ inputs.clang_version }}" in
+            clang-r596125) CLANG_REF="29182889399818f97baa65ea238c80e8117981eb" ;;
+            *) CLANG_REF="refs/heads/android16-qpr2-release" ;;
+          esac
+          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/${CLANG_REF}/${{ inputs.clang_version }}.tar.gz"
           TARBALL="${{ inputs.clang_version }}.tar.gz"
           ok=0
           for i in $(seq 1 8); do
@@ -156,6 +167,8 @@ jobs:
           else
             CCACHE_REAL_KEY=${CCACHE_KEY}-none
           fi
+          # Never restore a different compiler's cache (COMPILERCHECK was none).
+          CCACHE_REAL_KEY="${CCACHE_REAL_KEY}-${{ inputs.clang_version }}"
           echo "CCACHE_REAL_KEY=$CCACHE_REAL_KEY" >> $GITHUB_ENV
 
       - name: Purge old ccache (on refresh)
@@ -173,7 +186,6 @@ jobs:
           key: ${{ env.CCACHE_REAL_KEY }}-${{ runner.os }}-${{ inputs.kernel_branch }}
           restore-keys: |
             ${{ env.CCACHE_REAL_KEY }}-${{ runner.os }}-
-            ${{ env.CCACHE_REAL_KEY }}-
 
       - name: Compile Kernel
         run: |
@@ -193,9 +205,10 @@ jobs:
           export OBJCOPY="${CLANG_ROOT}/llvm-objcopy"
           export OBJDUMP="${CLANG_ROOT}/llvm-objdump"
           export STRIP="${CLANG_ROOT}/llvm-strip"
+          "${CLANG_ROOT}/clang" --version
 
           # ccache-ECS tuning: normalize paths/timestamps so cache hits across runs
-          export CCACHE_COMPILERCHECK="none"
+          export CCACHE_COMPILERCHECK="content"
           export CCACHE_BASEDIR="${GITHUB_WORKSPACE}"
           export CCACHE_NOHASHDIR="true"
           export CCACHE_NOHARDLINK="true"
